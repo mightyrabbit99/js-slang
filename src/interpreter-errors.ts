@@ -26,7 +26,7 @@ export class RuntimeSourceError implements SourceError {
 
 export class Breakpoint extends RuntimeSourceError {
   constructor() {
-    super();
+    super()
   }
 
   public explain() {
