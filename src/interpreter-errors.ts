@@ -24,6 +24,20 @@ export class RuntimeSourceError implements SourceError {
   }
 }
 
+export class Breakpoint extends RuntimeSourceError {
+  constructor() {
+    super();
+  }
+
+  public explain() {
+    return 'Hit debugger breakpoint.'
+  }
+
+  public elaborate() {
+    return 'TODO'
+  }
+}
+
 export class InterruptedError extends RuntimeSourceError {
   constructor(node: es.Node) {
     super(node)

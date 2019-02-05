@@ -1,4 +1,5 @@
 import { stringify } from './interop'
+import { __breakpoint } from './stdlib/debugger'
 import * as list from './stdlib/list'
 import { list_to_vector } from './stdlib/list'
 import * as misc from './stdlib/misc'
@@ -89,6 +90,7 @@ export const importBuiltins = (context: Context, externalBuiltIns: CustomBuiltIn
   const visualiseList = (v: Value) => externalBuiltIns.visualiseList(v, context.externalContext)
 
   if (context.chapter >= 1) {
+    defineBuiltin(context, '__breakpoint()', __breakpoint)
     defineBuiltin(context, 'runtime()', misc.runtime)
     defineBuiltin(context, 'display(val)', display)
     defineBuiltin(context, 'raw_display(str)', rawDisplay)
