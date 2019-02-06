@@ -6,6 +6,20 @@ An open-source interpreter for the *Source* programming language. Debugger editi
 
 ## Debugger
 To set a breakpoint, use the builtin function `__breakpoint()`.
+For example try this in the REPL:
+```
+function a(){ 
+  display(10); 
+  __breakpoint();
+  return 1;
+}
+function b(){
+  __breakpoint();
+  a();
+  return 2;
+}
+```
+
 
 ## Building
 
