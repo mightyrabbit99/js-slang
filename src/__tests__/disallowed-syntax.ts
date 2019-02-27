@@ -1,4 +1,4 @@
-import { expectParsedError, expectWarning, stripIndent } from '../utils/testing'
+import { expectParsedError, stripIndent } from '../utils/testing'
 
 test('Cannot leave blank init in for loop', () => {
   return expectParsedError(
