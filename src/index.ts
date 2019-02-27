@@ -1,10 +1,10 @@
 import createContext from './createContext'
+import { manualToggleDebugger, resetDebugger, resumeDebugger } from './debugger'
 import { evaluate } from './interpreter'
 import { InterruptedError } from './interpreter-errors'
 import { parse } from './parser'
 import { AsyncScheduler, PreemptiveScheduler } from './schedulers'
 import { Context, Error, Finished, Result, Scheduler, SourceError } from './types'
-import { manualToggleDebugger, resumeDebugger, resetDebugger } from './debugger'
 
 export interface IOptions {
   scheduler: 'preemptive' | 'async'
@@ -43,8 +43,10 @@ export function runInContext(
     } else {
       scheduler = new PreemptiveScheduler(theOptions.steps)
     }
-    let promise = scheduler.run(it, context, options.debugger)
-    if(context.debugger.toggled) { resumeDebugger(context) }
+    const promise = scheduler.run(it, context, options.debugger)
+    if (context.debugger.toggled) {
+      resumeDebugger(context)
+    }
     return promise
   } else {
     return Promise.resolve({ status: 'error' } as Result)
@@ -55,12 +57,12 @@ export function resume(result: Result): Finished | Error | Promise<Result> {
   if (result.status === 'finished' || result.status === 'error') {
     return result
   } else {
-    if(result.context.debugger.toggled) {
+    if (result.context.debugger.toggled) {
       resetDebugger(result.context)
       return result.scheduler.run(result.it, result.context, true)
     } else {
       resetDebugger(result.context)
-    return { status: 'error' }
+      return { status: 'error' }
     }
   }
 }

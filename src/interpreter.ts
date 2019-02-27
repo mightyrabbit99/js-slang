@@ -2,12 +2,11 @@
 import * as es from 'estree'
 import Closure from './closure'
 import * as constants from './constants'
+import { toggleDebugger } from './debugger'
 import * as errors from './interpreter-errors'
 import { Context, Environment, Frame, Value } from './types'
 import { createNode } from './utils/node'
 import * as rttc from './utils/rttc'
-import { toggleDebugger } from './debugger'
-
 
 class BreakValue {}
 
@@ -615,7 +614,7 @@ export const evaluators: { [nodeType: string]: Evaluator<es.Node> } = {
 }
 
 export function* evaluate(node: es.Node, context: Context) {
-  if(context.errors.length > 0) {
+  if (context.errors.length > 0) {
     throw context.errors[0]
   }
   yield* visit(context, node)

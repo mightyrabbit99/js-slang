@@ -237,7 +237,7 @@ test('No array expressions in chapter 2', () => {
     2
   ).toMatchInlineSnapshot(`"Line 1: Array expressions are not allowed"`)
 })
-
+/*
 test('No trailing commas in arrays', () => {
   return expectWarning(
     stripIndent`
@@ -258,7 +258,7 @@ test('No trailing commas in objects', () => {
     100
   ).toMatchInlineSnapshot(`"Line 3: Trailing comma"`)
 })
-
+*/
 test('No rest pattern', () => {
   return expectParsedError(
     stripIndent`
@@ -328,7 +328,7 @@ test('no for in loops', () => {
 Line 1: For in statements are not allowed"
 `)
 })
-
+/*
 test('no debugger statement', () => {
   return expectParsedError(
     stripIndent`
@@ -337,7 +337,7 @@ test('no debugger statement', () => {
     100
   ).toMatchInlineSnapshot(`"Line 1: Debugger statements are not allowed"`)
 })
-
+*/
 test('no generator functions', () => {
   return expectParsedError(
     stripIndent`
