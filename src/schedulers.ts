@@ -1,22 +1,36 @@
 /* tslint:disable:max-classes-per-file */
 import { MaximumStackLimitExceeded } from './interpreter-errors'
 import { Context, Result, Scheduler, Value } from './types'
+import { storeCurrentStatus, dummyItValue} from './debugger'
 
 export class AsyncScheduler implements Scheduler {
-  public run(it: IterableIterator<Value>, context: Context): Promise<Result> {
+  public constructor() {
+    this.run = this.run.bind(this)
+  }
+
+  public run(it: IterableIterator<Value>, context: Context, debug: boolean): Promise<Result> {
     return new Promise((resolve, reject) => {
       context.runtime.isRunning = true
       let itValue = it.next()
       try {
         while (!itValue.done) {
           itValue = it.next()
+          storeCurrentStatus(context, it, this)
+          if(debug && context.debugger.toggled) {
+            itValue = dummyItValue
+          }
         }
       } catch (e) {
         resolve({ status: 'error' })
       } finally {
         context.runtime.isRunning = false
       }
-      resolve({
+      resolve((debug && context.debugger.toggled) ? {
+        status: 'suspended',
+        it: it,
+        scheduler: this,
+        context: context
+      } : {
         status: 'finished',
         value: itValue.value
       })
@@ -25,9 +39,11 @@ export class AsyncScheduler implements Scheduler {
 }
 
 export class PreemptiveScheduler implements Scheduler {
-  constructor(public steps: number) {}
+  constructor(public steps: number) {
+    this.run = this.run.bind(this)
+  }
 
-  public run(it: IterableIterator<Value>, context: Context): Promise<Result> {
+  public run(it: IterableIterator<Value>, context: Context, debug: boolean = true): Promise<Result> {
     return new Promise((resolve, reject) => {
       context.runtime.isRunning = true
       let itValue = it.next()
@@ -37,6 +53,10 @@ export class PreemptiveScheduler implements Scheduler {
         try {
           while (!itValue.done && step < this.steps) {
             itValue = it.next()
+            storeCurrentStatus(context, it, this)
+            if(debug && context.debugger.toggled) {
+              itValue = dummyItValue
+            }
             step++
           }
         } catch (e) {
@@ -63,7 +83,15 @@ export class PreemptiveScheduler implements Scheduler {
         if (itValue.done) {
           context.runtime.isRunning = false
           clearInterval(interval)
-          resolve({ status: 'finished', value: itValue.value })
+          resolve((debug && context.debugger.toggled) ? {
+            status: 'suspended',
+            it: it,
+            scheduler: this,
+            context: context
+          } : {
+            status: 'finished',
+            value: itValue.value
+          })
         }
       })
     })

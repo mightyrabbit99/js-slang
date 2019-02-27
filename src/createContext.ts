@@ -4,6 +4,7 @@ import { list_to_vector } from './stdlib/list'
 import * as misc from './stdlib/misc'
 import * as parser from './stdlib/parser'
 import { Context, CustomBuiltIns, Value } from './types'
+import { AsyncScheduler } from './schedulers'
 
 const GLOBAL = typeof window === 'undefined' ? global : window
 
@@ -20,6 +21,12 @@ const createGlobalFrame = () => ({
   environment: {}
 })
 
+
+// dummy function to bypass tslint
+export function* evaluate(): any {
+  return 
+}
+
 export const createEmptyContext = <T>(
   chapter: number,
   externalSymbols: string[],
@@ -29,6 +36,7 @@ export const createEmptyContext = <T>(
   externalSymbols,
   errors: [],
   externalContext,
+  debugger: {disabled: false, toggled: false, lastIt: evaluate(), lastScheduler: new AsyncScheduler()},
   runtime: createEmptyRuntime()
 })
 

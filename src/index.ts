@@ -4,15 +4,18 @@ import { InterruptedError } from './interpreter-errors'
 import { parse } from './parser'
 import { AsyncScheduler, PreemptiveScheduler } from './schedulers'
 import { Context, Error, Finished, Result, Scheduler, SourceError } from './types'
+import { manualToggleDebugger, resumeDebugger, resetDebugger } from './debugger'
 
 export interface IOptions {
   scheduler: 'preemptive' | 'async'
   steps: number
+  debugger: boolean
 }
 
-const DEFAULT_OPTIONS: IOptions = {
+export const DEFAULT_OPTIONS: IOptions = {
   scheduler: 'async',
-  steps: 1000
+  steps: 1000,
+  debugger: true
 }
 
 export function parseError(errors: SourceError[]): string {
@@ -40,7 +43,9 @@ export function runInContext(
     } else {
       scheduler = new PreemptiveScheduler(theOptions.steps)
     }
-    return scheduler.run(it, context)
+    let promise = scheduler.run(it, context, options.debugger)
+    if(context.debugger.toggled) { resumeDebugger(context) }
+    return promise
   } else {
     return Promise.resolve({ status: 'error' } as Result)
   }
@@ -50,7 +55,13 @@ export function resume(result: Result): Finished | Error | Promise<Result> {
   if (result.status === 'finished' || result.status === 'error') {
     return result
   } else {
-    return result.scheduler.run(result.it, result.context)
+    if(result.context.debugger.toggled) {
+      resetDebugger(result.context)
+      return result.scheduler.run(result.it, result.context, true)
+    } else {
+      resetDebugger(result.context)
+    return { status: 'error' }
+    }
   }
 }
 
@@ -61,4 +72,4 @@ export function interrupt(context: Context) {
   context.errors.push(new InterruptedError(context.runtime.nodes[0]))
 }
 
-export { createContext, Context, Result }
+export { createContext, Context, Result, manualToggleDebugger, resetDebugger }

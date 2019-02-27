@@ -66,6 +66,13 @@ export interface Context<T = any> {
     nodes: es.Node[]
   }
 
+  debugger: {
+    disabled: boolean
+    toggled: boolean
+    lastIt: IterableIterator<T>
+    lastScheduler: Scheduler
+  }
+
   /**
    * Used for storing external properties.
    * For e.g, this can be used to store some application-related
@@ -108,5 +115,5 @@ export interface Suspended {
 export type Result = Suspended | Finished | Error
 
 export interface Scheduler {
-  run(it: IterableIterator<Value>, context: Context): Promise<Result>
+  run(it: IterableIterator<Value>, context: Context, debug?: boolean): Promise<Result>
 }

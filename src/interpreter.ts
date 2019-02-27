@@ -6,6 +6,8 @@ import * as errors from './interpreter-errors'
 import { Context, Environment, Frame, Value } from './types'
 import { createNode } from './utils/node'
 import * as rttc from './utils/rttc'
+import { toggleDebugger } from './debugger'
+
 
 class BreakValue {}
 
@@ -377,6 +379,11 @@ export const evaluators: { [nodeType: string]: Evaluator<es.Node> } = {
     return undefined
   },
 
+  *DebuggerStatement(node: es.DebuggerStatement, context: Context) {
+    toggleDebugger(node, context)
+    yield
+  },
+
   *ContinueStatement(node: es.ContinueStatement, context: Context) {
     return new ContinueValue()
   },
@@ -608,6 +615,9 @@ export const evaluators: { [nodeType: string]: Evaluator<es.Node> } = {
 }
 
 export function* evaluate(node: es.Node, context: Context) {
+  if(context.errors.length > 0) {
+    throw context.errors[0]
+  }
   yield* visit(context, node)
   const result = yield* evaluators[node.type](node, context)
   yield* leave(context)
