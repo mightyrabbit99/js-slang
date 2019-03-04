@@ -2216,6 +2216,66 @@ f(...[1, 2]);",
 }
 `;
 
+exports[`No trailing commas in arrays: expectWarning 1`] = `
+Object {
+  "alertResult": Array [],
+  "code": "[1,];",
+  "displayResult": Array [],
+  "errors": Array [
+    TrailingCommaError {
+      "location": Object {
+        "end": Object {
+          "column": 3,
+          "line": 1,
+        },
+        "start": Position {
+          "column": 2,
+          "line": 1,
+        },
+      },
+    },
+  ],
+  "parsedErrors": "Line 1: Trailing comma",
+  "result": Array [
+    1,
+  ],
+  "resultStatus": "finished",
+  "visualiseListResult": Array [],
+}
+`;
+
+exports[`No trailing commas in objects: expectWarning 1`] = `
+Object {
+  "alertResult": Array [],
+  "code": "({
+  a: 1,
+  b: 2,
+});",
+  "displayResult": Array [],
+  "errors": Array [
+    TrailingCommaError {
+      "location": Object {
+        "end": Object {
+          "column": 7,
+          "line": 3,
+        },
+        "start": Position {
+          "column": 6,
+          "line": 3,
+        },
+      },
+    },
+  ],
+  "parsedErrors": "Line 3: Trailing comma",
+  "result": Object {
+    "a": 1,
+    "b": 2,
+  },
+  "resultStatus": "finished",
+  "visualiseListResult": Array [],
+}
+`;
+
 exports[`for needs braces: expectParsedError 1`] = `
 Object {
   "alertResult": Array [],
@@ -2810,6 +2870,40 @@ Object {
   ],
   "parsedErrors": "Line 1: Class bodys are not allowed
 Line 1: Class declarations are not allowed",
+  "result": undefined,
+  "resultStatus": "error",
+  "visualiseListResult": Array [],
+}
+`;
+
+exports[`no debugger statement: expectParsedError 1`] = `
+Object {
+  "alertResult": Array [],
+  "code": "debugger;",
+  "displayResult": Array [],
+  "errors": Array [
+    DisallowedConstructError {
+      "node": Node {
+        "end": 9,
+        "loc": SourceLocation {
+          "end": Position {
+            "column": 9,
+            "line": 1,
+          },
+          "start": Position {
+            "column": 0,
+            "line": 1,
+          },
+        },
+        "start": 0,
+        "type": "DebuggerStatement",
+      },
+      "nodeType": "Debugger statements",
+      "severity": "Error",
+      "type": "Syntax",
+    },
+  ],
+  "parsedErrors": "Line 1: Debugger statements are not allowed",
   "result": undefined,
   "resultStatus": "error",
   "visualiseListResult": Array [],
