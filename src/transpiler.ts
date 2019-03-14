@@ -1,15 +1,11 @@
 import { simple } from 'acorn-walk/dist/walk'
 import { generate } from 'astring'
 import * as es from 'estree'
-import { RawSourceMap } from 'source-map'
-import * as sourceMap from 'source-map'
+import { RawSourceMap, SourceMapGenerator } from 'source-map'
 import { GLOBAL, GLOBAL_KEY_TO_ACCESS_NATIVE_STORAGE } from './constants'
-// import * as constants from "./constants";
 import * as errors from './interpreter-errors'
 import { AllowedDeclarations, Value } from './types'
 import * as create from './utils/astCreator'
-import * as random from './utils/random'
-// import * as rttc from "./utils/rttc";
 
 /**
  * This whole transpiler includes many many many many hacks to get stuff working.
@@ -27,23 +23,34 @@ let NATIVE_STORAGE: {
 
 let usedIdentifiers: Set<string>
 
-function getUnqiueId() {
-  let uniqueId = `$$unique${random.integer()}`
+function getUniqueId(uniqueId = 'unique') {
   while (usedIdentifiers.has(uniqueId)) {
-    uniqueId += random.character()
+    const start = uniqueId.slice(0, -1)
+    const end = uniqueId[uniqueId.length - 1]
+    const endToDigit = Number(end)
+    if (Number.isNaN(endToDigit) || endToDigit === 9) {
+      uniqueId += '0'
+    } else {
+      uniqueId = start + String(endToDigit + 1)
+    }
   }
   usedIdentifiers.add(uniqueId)
   return uniqueId
 }
 
-let nativeStorageUniqueId: string
+const globalIds = {
+  native: '',
+  callIfFuncAndRightArgs: '',
+  boolOrErr: '',
+  wrap: ''
+}
 let contextId: number
 
 function createStorageLocationAstFor(type: StorageLocations): es.MemberExpression {
   return create.memberExpression(
     {
       type: 'MemberExpression',
-      object: create.identifier(nativeStorageUniqueId),
+      object: create.identifier(globalIds.native),
       property: create.literal(contextId),
       computed: true
     },
@@ -122,13 +129,30 @@ function createStatementsToStoreCurrentlyDeclaredGlobals(program: es.Program) {
   return statements
 }
 
-function transformFunctionDeclarationsToArrowFunctions(program: es.Program) {
+function generateFunctionsToStringMap(program: es.Program) {
+  const map: Map<es.Node, string> = new Map()
+  simple(program, {
+    ArrowFunctionExpression(node: es.ArrowFunctionExpression) {
+      map.set(node, generate(node))
+    },
+    FunctionDeclaration(node: es.FunctionDeclaration) {
+      map.set(node, generate(node))
+    }
+  })
+  return map
+}
+
+function transformFunctionDeclarationsToArrowFunctions(
+  program: es.Program,
+  functionsToStringMap: Map<es.Node, string>
+) {
   simple(program, {
     FunctionDeclaration(node) {
       const { id, params, body } = node as es.FunctionDeclaration
       node.type = 'VariableDeclaration'
       node = node as es.VariableDeclaration
       const asArrowFunction = create.blockArrowFunction(params as es.Identifier[], body)
+      functionsToStringMap.set(asArrowFunction, functionsToStringMap.get(node)!)
       node.declarations = [
         {
           type: 'VariableDeclarator',
@@ -154,17 +178,20 @@ function transformFunctionDeclarationsToArrowFunctions(program: es.Program) {
  * to allow for iterative processes to take place
  */
 
-function wrapArrowFunctionsToAllowNormalCallsAndNiceToString(program: es.Program) {
+function wrapArrowFunctionsToAllowNormalCallsAndNiceToString(
+  program: es.Program,
+  functionsToStringMap: Map<es.Node, string>
+) {
   simple(program, {
     ArrowFunctionExpression(node) {
       const originalNode = { ...node }
       node.type = 'CallExpression'
       const transformedNode = node as es.CallExpression
-      transformedNode.arguments = [originalNode as es.ArrowFunctionExpression]
-      transformedNode.callee = create.memberExpression(
-        createStorageLocationAstFor('properTailCalls'),
-        'wrap'
-      )
+      transformedNode.arguments = [
+        originalNode as es.ArrowFunctionExpression,
+        create.literal(functionsToStringMap.get(node)!)
+      ]
+      transformedNode.callee = create.identifier(globalIds.wrap)
     }
   })
 }
@@ -242,20 +269,18 @@ function transformCallExpressionsToCheckIfFunction(program: es.Program) {
         create.literal(column),
         ...node.arguments
       ]
-      node.callee = createGetFromStorageLocationAstFor(
-        'callIfFunctionAndRightArgumentsElseError',
-        'operators'
-      )
+      node.callee = create.identifier(globalIds.callIfFuncAndRightArgs)
     }
   })
 }
 
 function transformTernaryIfAndLogicalsToCheckIfBoolean(program: es.Program) {
   const transform = (test: es.Expression, line: number, column: number) =>
-    create.callExpression(
-      createGetFromStorageLocationAstFor('itselfIfBooleanElseError', 'operators'),
-      [test, create.literal(line), create.literal(column)]
-    )
+    create.callExpression(create.identifier(globalIds.boolOrErr), [
+      test,
+      create.literal(line),
+      create.literal(column)
+    ])
   simple(program, {
     IfStatement(node: es.IfStatement) {
       const { line, column } = node.loc!.start
@@ -272,10 +297,12 @@ function transformTernaryIfAndLogicalsToCheckIfBoolean(program: es.Program) {
   })
 }
 
-function refreshLatestNatives(program: es.Program) {
+function refreshLatestIdentifiers(program: es.Program) {
   NATIVE_STORAGE = GLOBAL[GLOBAL_KEY_TO_ACCESS_NATIVE_STORAGE]
   usedIdentifiers = getAllIdentifiersUsed(program)
-  nativeStorageUniqueId = getUnqiueId()
+  for (const identifier of Object.getOwnPropertyNames(globalIds)) {
+    globalIds[identifier] = getUniqueId(identifier)
+  }
 }
 
 function getAllIdentifiersUsed(program: es.Program) {
@@ -283,6 +310,15 @@ function getAllIdentifiersUsed(program: es.Program) {
   simple(program, {
     Identifier(node: es.Identifier) {
       identifiers.add(node.name)
+    },
+    Pattern(node: es.Pattern) {
+      if (node.type === 'Identifier') {
+        identifiers.add(node.name)
+      } else if (node.type === 'MemberExpression') {
+        if (node.object.type === 'Identifier') {
+          identifiers.add(node.object.name)
+        }
+      }
     }
   })
   return identifiers
@@ -335,8 +371,8 @@ function splitLastStatementIntoStorageOfResultAndAccessorPair(
       lastLineToReturnResult: create.returnStatement(create.identifier('undefined'))
     }
   }
-  const uniqueIdentifier = getUnqiueId()
-  const map = new sourceMap.SourceMapGenerator({ file: 'lastline' })
+  const uniqueIdentifier = getUniqueId('lastStatementResult')
+  const map = new SourceMapGenerator({ file: 'lastline' })
   const lastStatementAsCode = generate(lastStatement, { lineEnd: ' ', sourceMap: map, version: 3 })
   const uniqueDeclarationToStoreLastStatementResult = create.constantDeclaration(
     uniqueIdentifier,
@@ -356,21 +392,18 @@ function splitLastStatementIntoStorageOfResultAndAccessorPair(
 
 export function transpile(untranformedProgram: es.Program, id: number) {
   contextId = id
-  refreshLatestNatives(untranformedProgram)
+  refreshLatestIdentifiers(untranformedProgram)
   const program: es.Program = untranformedProgram
   const statements = program.body as es.Statement[]
   if (statements.length === 0) {
     return { transpiled: '' }
   }
+  const functionsToStringMap = generateFunctionsToStringMap(program)
   transformReturnStatementsToAllowProperTailCalls(program)
   transformCallExpressionsToCheckIfFunction(program)
   transformTernaryIfAndLogicalsToCheckIfBoolean(program)
-  transformFunctionDeclarationsToArrowFunctions(program)
-  wrapArrowFunctionsToAllowNormalCallsAndNiceToString(program)
-  const declarationToAccessNativeStorage = create.constantDeclaration(
-    nativeStorageUniqueId,
-    create.identifier(GLOBAL_KEY_TO_ACCESS_NATIVE_STORAGE)
-  )
+  transformFunctionDeclarationsToArrowFunctions(program, functionsToStringMap)
+  wrapArrowFunctionsToAllowNormalCallsAndNiceToString(program, functionsToStringMap)
   const statementsToPrepend = getStatementsToPrepend()
   const statementsToAppend = getStatementsToAppend(program)
   const lastStatement = statements.pop() as es.Statement
@@ -386,12 +419,33 @@ export function transpile(untranformedProgram: es.Program, id: number) {
     ...statementsToAppend,
     lastLineToReturnResult
   ])
-  program.body = [declarationToAccessNativeStorage, wrapped]
+  program.body = [...getDeclarationsToAccessTranspilerInternals(), wrapped]
 
-  const map = new sourceMap.SourceMapGenerator({ file: 'source' })
+  const map = new SourceMapGenerator({ file: 'source' })
   const transpiled = generate(program, { sourceMap: map })
   const codeMap = map.toJSON()
   return { transpiled, codeMap, evalMap }
+}
+
+function getDeclarationsToAccessTranspilerInternals(): es.VariableDeclaration[] {
+  return [
+    create.constantDeclaration(
+      globalIds.native,
+      create.identifier(GLOBAL_KEY_TO_ACCESS_NATIVE_STORAGE)
+    ),
+    create.constantDeclaration(
+      globalIds.boolOrErr,
+      createGetFromStorageLocationAstFor('itselfIfBooleanElseError', 'operators')
+    ),
+    create.constantDeclaration(
+      globalIds.callIfFuncAndRightArgs,
+      createGetFromStorageLocationAstFor('callIfFunctionAndRightArgumentsElseError', 'operators')
+    ),
+    create.constantDeclaration(
+      globalIds.wrap,
+      create.memberExpression(createStorageLocationAstFor('properTailCalls'), 'wrap')
+    )
+  ]
 }
 
 /**

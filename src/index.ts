@@ -10,7 +10,7 @@ import { AsyncScheduler, PreemptiveScheduler } from './schedulers'
 import { transpile } from './transpiler'
 import { Context, Directive, Error, Finished, Result, Scheduler, SourceError } from './types'
 import { sandboxedEval } from './utils/evalContainer'
-import { enableDebugger, disableDebugger, manualToggleDebugger, resetDebugger, resumeProgram } from './debugger'
+import { enableDebugger, disableDebugger, manualToggleDebugger, resetDebugger, resumeProgram, setBreakpointByLine } from './debugger'
 
 export interface IOptions {
   scheduler: 'preemptive' | 'async'
@@ -20,7 +20,7 @@ export interface IOptions {
 
 const DEFAULT_OPTIONS: IOptions = {
   scheduler: 'async',
-  steps: 1000,
+  steps: 1500,
   isNativeRunnable: false
 }
 
@@ -146,4 +146,13 @@ export function interrupt(context: Context) {
   context.errors.push(new InterruptedError(context.runtime.nodes[0]))
 }
 
-export { createContext, Context, Result, manualToggleDebugger, resetDebugger, enableDebugger, disableDebugger, resumeProgram}
+export { 
+  createContext, 
+  Context, 
+  Result, 
+  manualToggleDebugger, 
+  resetDebugger,
+  setBreakpointByLine,
+  enableDebugger, 
+  disableDebugger, 
+  resumeProgram}
