@@ -30,7 +30,7 @@ export function manualToggleDebugger(context: Context): Result {
 }
 
 export function checkBreakpointHit(node: es.Node, context: Context) {
-    if(node.loc) {
+    if(context.debugger.enabled && node.loc) {
         if(lastReachedBreakpointLine !== -1) {
             if(node.loc.start.line !== lastReachedBreakpointLine) {
                 lastReachedBreakpointLine = -1;
