@@ -129,6 +129,8 @@ export interface Suspended {
 
 export type Result = Suspended | Finished | Error
 
+export type DebuggerMode = "DEBUG_NEXT" | "DEBUG_STEP_OUT" | "DEBUG_STEP_OVER" | "DEBUG_RESUME"
+
 export interface Scheduler {
   run(it: IterableIterator<Value>, context: Context): Promise<Result>
 }

@@ -6,7 +6,7 @@ import * as errors from './interpreter-errors'
 import { Context, Environment, Frame, Value } from './types'
 import { createNode } from './utils/node'
 import * as rttc from './utils/rttc'
-import { checkBreakpointHit, toggleDebugger } from './debugger'
+import { checkStepOut, checkBreakpointHit, toggleDebugger, checkStepIn } from './debugger'
 
 class BreakValue {}
 
@@ -121,12 +121,14 @@ function defineVariable(context: Context, name: string, value: Value, constant =
 }
 
 function* visit(context: Context, node: es.Node) {
+  checkStepIn(context)
   checkBreakpointHit(node, context)
   context.runtime.nodes.unshift(node)
   yield context
 }
 
 function* leave(context: Context) {
+  checkStepOut(context)
   context.runtime.nodes.shift()
   yield context
 }

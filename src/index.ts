@@ -8,9 +8,9 @@ import { ExceptionError, InterruptedError, RuntimeSourceError } from './interpre
 import { parse } from './parser'
 import { AsyncScheduler, PreemptiveScheduler } from './schedulers'
 import { transpile } from './transpiler'
-import { Context, Directive, Error, Finished, Result, Scheduler, SourceError } from './types'
+import { Context, DebuggerMode, Directive, Error, Finished, Result, Scheduler, SourceError } from './types'
 import { sandboxedEval } from './utils/evalContainer'
-import { enableDebugger, disableDebugger, manualToggleDebugger, resetDebugger, resumeProgram, setBreakpointByLine } from './debugger'
+import { enableDebugger, disableDebugger, manualToggleDebugger, resetDebugger, resumeProgram, setDebuggerMode, setBreakpointByLine } from './debugger'
 
 export interface IOptions {
   scheduler: 'preemptive' | 'async'
@@ -52,6 +52,7 @@ export function runInContext(
   context: Context,
   options: Partial<IOptions> = {}
 ): Promise<Result> {
+  setDebuggerMode("DEBUG_RESUME")
   function getFirstLine(theProgram: Program) {
     if (theProgram.body[0] && theProgram.body[0].type === 'ExpressionStatement') {
       const firstLineOfProgram = theProgram.body[0] as ExpressionStatement
@@ -130,7 +131,8 @@ export function runInContext(
   }
 }
 
-export function resume(result: Result): Finished | Error | Promise<Result> {
+export function resume(mode: DebuggerMode, result: Result): Finished | Error | Promise<Result> {
+  setDebuggerMode(mode)
   if (result.status === 'finished' || result.status === 'error') {
     return result
   } else {
@@ -155,4 +157,6 @@ export {
   setBreakpointByLine,
   enableDebugger, 
   disableDebugger, 
-  resumeProgram}
+  resumeProgram,
+  DebuggerMode
+}

@@ -49,9 +49,9 @@ export class PreemptiveScheduler implements Scheduler {
 
   public run(it: IterableIterator<Value>, context: Context): Promise<Result> {
     return new Promise((resolve, reject) => {
-      context.runtime.isRunning = true
-      let itValue = it.next()
       let thisScheduler = this
+      let itValue: any = it.next()
+      context.runtime.isRunning = true
       function interval() {
         setTimeout(
           function setTimeOutLoop() {
